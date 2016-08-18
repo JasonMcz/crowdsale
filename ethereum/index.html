@@ -206,7 +206,7 @@ web3.version.getNetwork(function(error, version){
         showInfo('You sent a transaction: <a href="'+link+'">'+txHash+'</a>');
         confirm(result, function(err, result){
           showInfo('Your transaction has been confirmed: <a href="'+link+'">'+txHash+'</a>');
-          updateDisplay();
+          setTimeout(function(){updateDisplay}, 1000);
         })
       }
     });
@@ -345,30 +345,42 @@ web3.version.getNetwork(function(error, version){
   }
 
   function send(addr, pk, functionName, args, amount, gas, callback) {
-    var gasLimit = web3.toHex(gas);
-    var gasPrice = web3.toHex(20000000000);
-    var value = web3.toHex(web3.toWei(amount,'Ether'));
-    var data = contract[functionName].getData.apply(null, args);
-    var to = contractAddr;
 
-    getBalance(address, function(err, result){
-      if (amount>result) {
-        callback('You don\'t have enough funds in your Ethereum account.', undefined);
-      } else {
-        try {
-          web3.eth.sendTransaction({to: to, from: address, value: value, data: data, gas: gasLimit, gasPrice: gasPrice}, function(err, result){
-            if (!err) {
-              callback(null, result);
-            } else {
-              proxySend();
-            }
-          });
-        } catch (err) {
-          proxySend();
-        }
+    if (!addr) {
+      callback('Please select an Ethereum account.', undefined);
+    } else {
 
-        function proxySend() {
+      var gasLimit = web3.toHex(gas);
+      var gasPrice = web3.toHex(20000000000);
+      var value = web3.toHex(web3.toWei(amount,'Ether'));
+      var data = contract[functionName].getData.apply(null, args);
+      var to = contractAddr;
+
+      getBalance(address, function(err, result){
+        if (amount>result) {
+          callback('You don\'t have enough funds in your Ethereum account.', undefined);
+        } else {
+
           if (pk) {
+            proxySend();
+          } else {
+            web3Send();
+          }
+
+          function web3Send() {
+            try {
+              web3.eth.sendTransaction({to: to, from: address, value: value, data: data, gas: gasLimit, gasPrice: gasPrice}, function(err, result){
+                if (!err) {
+                  callback(null, result);
+                } else {
+                }
+              });
+            } catch (err) {
+              callback(err, undefined);
+            }
+          }
+
+          function proxySend() {
             try {
               var privateKey = new EthJS.Buffer.Buffer(pk, 'hex');
 
@@ -396,12 +408,12 @@ web3.version.getNetwork(function(error, version){
             } catch (err) {
               callback('Could not send transaction through Etherscan.', undefined);
             }
-          } else {
-            callback('Could not sign transaction because there is no private key available.', undefined);
           }
+
         }
-      }
-    });
+      });
+    }
+
   }
 
   function confirm(txHash, callback) {
